@@ -2,8 +2,8 @@
 ### 平台树莓派4B+csi_camera
 
 ### threadpool
-参见repo
-交叉编译成动态库
+参见repo https://github.com/OrandolY/ThreadPool
+交叉编译动态库
 
 ### camera控制 通过v4l2框架实现设备控制、图像存储
 
