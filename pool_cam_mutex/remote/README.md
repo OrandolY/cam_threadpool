@@ -1,0 +1,1 @@
+` g++ -o remote win_remote.cpp -lws2_32`

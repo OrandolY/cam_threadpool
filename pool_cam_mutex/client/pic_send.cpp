@@ -32,6 +32,14 @@ void sendImageToSocket(const unsigned char* imageData, int size, const char* ipA
         return;  
     }  
 
+    int localPort = 1000;
+    // 绑定本地端口  
+    sockaddr_in localAddr;  
+    memset(&localAddr, 0, sizeof(localAddr));  
+    localAddr.sin_family = AF_INET;  
+    localAddr.sin_port = htons(localPort);  
+    localAddr.sin_addr.s_addr = INADDR_ANY; // 绑定到所有可用的接口  
+
     sockaddr_in serverAddr;  
     memset(&serverAddr, 0, sizeof(serverAddr));  
     serverAddr.sin_family = AF_INET;  
@@ -55,22 +63,31 @@ void sendImageToSocket(const unsigned char* imageData, int size, const char* ipA
     
     while (totalSent < size) {  
         int remaining = size - totalSent;  
-        int packetSize = remaining > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : remaining;  
+        int packetSize = remaining > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : remaining; 
+        int reamin_flag = remaining > MAX_PACKET_SIZE ? 1 : 0;
+	cout << "size:" << size << endl;
+        cout << "totalSent:" << totalSent << endl;
+        cout << "packetSize:" << packetSize << endl;
+        cout << "remaining:" << remaining << endl; 
 
         // 创建数据包，包含序号和数据  
-        std::vector<unsigned char> packet(packetSize + sizeof(int)); // + sizeof(int) for sequence number  
-        *(int*)packet.data() = sequenceNumber; // 将序号放在数据包的开始位置  
-        memcpy(packet.data() + sizeof(int), imageData + totalSent, packetSize); // 复制图像数据  
+        std::vector<unsigned char> packet(packetSize + sizeof(int) +  sizeof(int)); // + sizeof(int) for sequence number  
+        *(int*)packet.data() = sequenceNumber; // 将序号放在数据
+	*(int*)(packet.data() + sizeof(int)) = reamin_flag;// 把是否还有剩余数据包放在第二个int 
+        memcpy(packet.data() + sizeof(int) + sizeof(int), imageData + totalSent, packetSize); // 复制图像数据  
         
         // 发送数据  
-        ssize_t sentBytes = send(sock, packet.data(), packet.size(), 0);  
+        //ssize_t sentBytes = send(sock, packet.data(), packet.size(), 0);
+        ssize_t sentBytes = sendto(sock, packet.data(), packet.size(), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
         if (sentBytes < 0) {  
             perror("Error sending data");  
             break;  
         }  
 
         totalSent += packetSize;  
-        sequenceNumber++; // 增加序号  
+        cout << sequenceNumber << endl;
+	sequenceNumber++; // 增加序号  
+        //cout << sequenceNumber << endl;
     }  
 
     close(sock);  
@@ -126,7 +143,8 @@ void processImage(const Mat& inputImage, const char* des_ip_addr, int des_ip_por
 
     // 将处理后的图像编码为JPEG格式  
     std::vector<uchar> buf;  
-    imencode(".jpg", detectedFaceImage, buf);  
+    imencode(".jpg", detectedFaceImage, buf);
+    //imencode(".jpg", inputImage, buf);
 
     now = time(NULL);  
     sprintf(time_str, "%ld", now);  
@@ -203,7 +221,7 @@ Mat readFromSharedMemory(const char* shmName) {
 }  
 
 int pic_send(const char *shm_name_,  const char* des_ip_addr, int des_ip_port) {
-
+    while(1){
     // 从共享内存读取图像
     Mat image = readFromSharedMemory(shm_name_);
     if (image.empty()) {  
@@ -213,6 +231,6 @@ int pic_send(const char *shm_name_,  const char* des_ip_addr, int des_ip_port) {
 
     // 处理图像  
     processImage(image, des_ip_addr, des_ip_port);  
-
+    }
     return 0;  
 }
